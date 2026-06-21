@@ -8,13 +8,16 @@ import {
   FileText,
   Gauge,
   Linkedin,
+  LockKeyhole,
+  LogOut,
   Mail,
   Mic,
   Plus,
   RefreshCw,
   ShieldCheck,
   Sparkles,
-  Trash2
+  Trash2,
+  UserCircle
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -26,15 +29,19 @@ import {
 } from "./engine";
 import { downloadDocx, downloadPdf, downloadText } from "./exporters";
 import {
+  clearAuth,
   clearSession,
+  loadAuth,
   loadApplications,
   loadSession,
+  saveAuth,
   saveApplications,
   saveSession
 } from "./storage";
 import type {
   ApplicationRecord,
   ApplicationStatus,
+  AuthUser,
   CvMode,
   JobMode,
   OutputGoal,
@@ -43,7 +50,7 @@ import type {
   SessionData
 } from "./types";
 
-type Screen = "onboarding" | "scan" | "reveal" | "dashboard";
+type Screen = "onboarding" | "scan" | "reveal" | "login" | "dashboard";
 type WorkspaceTab =
   | "optimizer"
   | "report"
@@ -84,6 +91,11 @@ const emptyApplication = {
   appliedAt: new Date().toISOString().slice(0, 10),
   notes: "",
   nextFollowupAt: ""
+};
+
+const demoCredentials = {
+  email: "founder@lumen.test",
+  password: "Lumen2026!"
 };
 
 const stageLabels: Record<SearchStage, string> = {
@@ -193,6 +205,10 @@ function scoreLabel(score: number) {
   return "At risk";
 }
 
+function hasScorableSession(session: SessionData) {
+  return session.cvMode === "paste" && session.cvText.trim().length >= 80;
+}
+
 function todayIso() {
   return new Date().toISOString().slice(0, 10);
 }
@@ -212,8 +228,13 @@ function copyText(value: string) {
 
 export default function App() {
   const [session, setSession] = useState<SessionData | null>(() => loadSession());
+  const [authUser, setAuthUser] = useState<AuthUser | null>(() => loadAuth());
   const [applications, setApplications] = useState<ApplicationRecord[]>(() => loadApplications());
-  const [screen, setScreen] = useState<Screen>(() => (loadSession() ? "dashboard" : "onboarding"));
+  const [screen, setScreen] = useState<Screen>(() => {
+    const savedSession = loadSession();
+    if (!savedSession) return "onboarding";
+    return loadAuth() ? "dashboard" : "login";
+  });
   const [step, setStep] = useState(0);
   const [scanProgress, setScanProgress] = useState(0);
   const [tab, setTab] = useState<WorkspaceTab>("optimizer");
@@ -235,7 +256,10 @@ export default function App() {
   });
   const [applicationDraft, setApplicationDraft] = useState(emptyApplication);
   const [rerunRole, setRerunRole] = useState(session?.targetRole ?? "");
+  const [rerunCv, setRerunCv] = useState(session?.cvText ?? "");
   const [rerunJob, setRerunJob] = useState(session?.jobText ?? "");
+  const [loginForm, setLoginForm] = useState(demoCredentials);
+  const [loginError, setLoginError] = useState("");
   const onboardingTotal = 7;
 
   useEffect(() => {
@@ -254,6 +278,7 @@ export default function App() {
           setSession(nextSession);
           saveSession(nextSession);
           setRerunRole(nextSession.targetRole);
+          setRerunCv(nextSession.cvText);
           setRerunJob(nextSession.jobText);
           window.setTimeout(() => setScreen("reveal"), 280);
           return 100;
@@ -298,8 +323,8 @@ export default function App() {
 
   function saveEmailAndOpenWorkspace() {
     if (!session) return;
-    updateSession({ ...session, email: form.email.trim() });
-    setScreen("dashboard");
+    updateSession({ ...session, email: form.email.trim() || authUser?.email || "" });
+    setScreen(authUser ? "dashboard" : "login");
   }
 
   function resetAll() {
@@ -309,22 +334,61 @@ export default function App() {
     setStep(0);
     setScreen("onboarding");
     setTab("optimizer");
+    setRerunRole("");
+    setRerunCv("");
+    setRerunJob("");
   }
 
   function rerunAnalysis() {
     if (!session) return;
+    const nextCvMode: CvMode = rerunCv.trim().length >= 80 ? "paste" : "skip";
     const nextForm = {
       targetRole: rerunRole,
       searchStage: session.searchStage,
       blocker: session.blocker,
-      cvMode: session.cvMode,
+      cvMode: nextCvMode,
       jobMode: (rerunJob.trim() ? "paste" : "role") as JobMode,
       outputGoal: session.outputGoal,
-      cvText: session.cvText,
+      cvText: rerunCv,
       jobText: rerunJob,
       email: session.email
     };
     updateSession(buildSession(nextForm, session.id));
+  }
+
+  function handleLogin(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const email = loginForm.email.trim().toLowerCase();
+    const password = loginForm.password;
+
+    if (email !== demoCredentials.email || password !== demoCredentials.password) {
+      setLoginError("Use the test account shown below to open the paid workspace preview.");
+      return;
+    }
+
+    const now = new Date().toISOString();
+    const user: AuthUser = {
+      email: demoCredentials.email,
+      name: "Anastasia",
+      paidAccess: true,
+      createdAt: authUser?.createdAt ?? now,
+      lastLoginAt: now
+    };
+
+    saveAuth(user);
+    setAuthUser(user);
+    setLoginError("");
+
+    if (session) {
+      updateSession({ ...session, email: session.email || user.email });
+      setScreen("dashboard");
+    }
+  }
+
+  function logout() {
+    clearAuth();
+    setAuthUser(null);
+    setScreen(session ? "login" : "onboarding");
   }
 
   function addApplication() {
@@ -347,7 +411,7 @@ export default function App() {
   return (
     <div className="app">
       <header className="topbar">
-        <button className="brand" onClick={() => (session ? setScreen("dashboard") : setScreen("onboarding"))}>
+        <button className="brand" onClick={() => (session ? setScreen(authUser ? "dashboard" : "login") : setScreen("onboarding"))}>
           <span className="brand-mark">L</span>
           <span>
             <strong>Lumen</strong>
@@ -355,15 +419,26 @@ export default function App() {
           </span>
         </button>
         <nav className="topbar-actions">
+          {authUser && (
+            <span className="account-chip" aria-label="Signed in account">
+              <UserCircle size={17} />
+              {authUser.email}
+            </span>
+          )}
           {session && (
             <>
-              <button className="ghost-button" onClick={() => setScreen("dashboard")}>
-                Dashboard
+              <button className="ghost-button" onClick={() => setScreen(authUser ? "dashboard" : "login")}>
+                {authUser ? "Dashboard" : "Log in"}
               </button>
               <button className="ghost-button" onClick={resetAll}>
                 New scan
               </button>
             </>
+          )}
+          {authUser && (
+            <button className="ghost-button" onClick={logout}>
+              <LogOut size={17} /> Log out
+            </button>
           )}
         </nav>
       </header>
@@ -395,6 +470,7 @@ export default function App() {
               </div>
               <div className="trust-strip" aria-label="Product safeguards">
                 <span><ShieldCheck size={16} /> Pay once at launch</span>
+                <span><UserCircle size={16} /> Account after unlock</span>
                 <span><ShieldCheck size={16} /> No invented facts</span>
                 <span><Gauge size={16} /> CV optional to start</span>
                 <span><Download size={16} /> DOCX, PDF, TXT</span>
@@ -612,7 +688,7 @@ export default function App() {
                     <strong>{form.jobMode === "paste" ? "Specific advert pasted" : "Target-role mode"}</strong>
                   </div>
                   <p className="soft-note">
-                    The free reveal shows the score or readiness gap first. The full CV, cover letter, exports and report come after the unlock point.
+                    The free reveal shows a real score when there is a CV to analyse, or a starter readiness plan when there is not. The full CV, cover letter, exports and report come after the unlock point.
                   </p>
                 </StepFrame>
               )}
@@ -684,6 +760,7 @@ export default function App() {
               <span>ATS-ready CV</span>
               <span>Cover letter</span>
               <span>Full report</span>
+              <span>Saved account workspace</span>
               <span>DOCX / PDF / TXT</span>
               <span>Tracker</span>
               <span>LinkedIn + interview prep</span>
@@ -722,22 +799,28 @@ export default function App() {
       {screen === "reveal" && session && (
         <main className="reveal-shell">
           <section className="score-card reveal-score">
-            <ScoreGauge score={session.analysis.score} />
+            {hasScorableSession(session) ? (
+              <ScoreGauge score={session.analysis.score} />
+            ) : (
+              <NoScoreBadge />
+            )}
             <div>
               <p className="eyebrow">Free reveal</p>
               <h1>
-                {session.cvMode === "paste" && session.cvText.trim().length >= 80
+                {hasScorableSession(session)
                   ? `You are ${100 - session.analysis.score} points from an ATS-ready application.`
-                  : "You can still start without your CV in front of you."}
+                  : session.jobMode === "paste"
+                    ? "No CV score yet. We can still build the route."
+                    : "No score yet, and that is the right answer."}
               </h1>
               <p>
-                {session.cvMode === "paste" && session.cvText.trim().length >= 80 ? (
+                {hasScorableSession(session) ? (
                   <>
                     Score: <strong>{session.analysis.score}/100</strong> ({scoreLabel(session.analysis.score)}). Here is what is holding it back.
                   </>
                 ) : (
                   <>
-                    We will build a role-ready structure for <strong>{session.targetRole}</strong> first. Paste your CV later for a sharper ATS score and rewrite.
+                    Without your CV, Lumen should not pretend to know your ATS match. We will build a role-ready structure for <strong>{session.targetRole}</strong> first, then you can paste your CV later for a real scan.
                   </>
                 )}
               </p>
@@ -751,7 +834,7 @@ export default function App() {
             <div className="panel unlock-panel">
               <h2>Unlock full application pack</h2>
               <p>
-                The paywall slot goes here later. The intended model is a one-time launch payment, not a trial or subscription. This preview opens the full workspace so you can judge the experience.
+                The paywall slot goes here later. The intended model is a one-time launch payment, not a trial or subscription. After checkout, the receipt link should bring the user back into their account workspace.
               </p>
               <div className="pricing-preview" aria-label="Planned pricing">
                 <div>
@@ -775,22 +858,40 @@ export default function App() {
                 onChange={(event) => setForm({ ...form, email: event.target.value })}
               />
               <button className="primary-button full" onClick={saveEmailAndOpenWorkspace}>
-                Continue free preview <ArrowRight size={18} />
+                Continue to account preview <ArrowRight size={18} />
               </button>
               <p className="privacy-line">
-                Your preview is saved on this device. The live product should include private accounts, delete controls and a clear retention policy.
+                Next you will use the test account to view the paid workspace as a returning customer.
               </p>
             </div>
           </section>
         </main>
       )}
 
-      {screen === "dashboard" && session && (
+      {screen === "login" && session && (
+        <LoginScreen
+          loginForm={loginForm}
+          loginError={loginError}
+          onChange={setLoginForm}
+          onSubmit={handleLogin}
+        />
+      )}
+
+      {screen === "dashboard" && session && authUser && (
         <main className="workspace">
           <aside className="workspace-sidebar">
             <div className="compact-score">
-              <ScoreGauge score={session.analysis.score} compact />
-              <span>{scoreLabel(session.analysis.score)}</span>
+              {hasScorableSession(session) ? (
+                <>
+                  <ScoreGauge score={session.analysis.score} compact />
+                  <span>{scoreLabel(session.analysis.score)}</span>
+                </>
+              ) : (
+                <>
+                  <NoScoreBadge compact />
+                  <span>No score yet</span>
+                </>
+              )}
             </div>
             <div className="tab-list" role="tablist" aria-label="Workspace">
               {tabs.map((item) => {
@@ -808,7 +909,7 @@ export default function App() {
               })}
             </div>
             <div className="sidebar-note">
-              <strong>Paywall-ready:</strong> insert a £19 one-time checkout between reveal and this workspace. No trial, no subscription.
+              <strong>Paid workspace:</strong> the £19 checkout should unlock this account via receipt link or magic link. No trial, no subscription.
             </div>
           </aside>
 
@@ -827,8 +928,10 @@ export default function App() {
               <OptimizerTab
                 session={session}
                 rerunRole={rerunRole}
+                rerunCv={rerunCv}
                 rerunJob={rerunJob}
                 setRerunRole={setRerunRole}
+                setRerunCv={setRerunCv}
                 setRerunJob={setRerunJob}
                 rerunAnalysis={rerunAnalysis}
                 updateOptimizedCv={(optimizedCv) => updateSession({ ...session, optimizedCv })}
@@ -918,6 +1021,65 @@ function StepFrame({
   );
 }
 
+function LoginScreen({
+  loginForm,
+  loginError,
+  onChange,
+  onSubmit
+}: {
+  loginForm: typeof demoCredentials;
+  loginError: string;
+  onChange: (value: typeof demoCredentials) => void;
+  onSubmit: (event: React.FormEvent<HTMLFormElement>) => void;
+}) {
+  return (
+    <main className="login-shell">
+      <section className="login-card">
+        <div className="login-icon">
+          <LockKeyhole size={34} />
+        </div>
+        <p className="eyebrow">Account workspace</p>
+        <h1>Your paid link should open a saved workspace.</h1>
+        <p>
+          In the live flow, checkout creates or finds the account from the buyer email and sends them back here. For testing, use the seeded account below.
+        </p>
+
+        <div className="credential-box" aria-label="Test login credentials">
+          <span>Test email</span>
+          <strong>{demoCredentials.email}</strong>
+          <span>Test password</span>
+          <strong>{demoCredentials.password}</strong>
+        </div>
+
+        <form className="login-form" onSubmit={onSubmit}>
+          <label>
+            Email
+            <input
+              className="text-input"
+              type="email"
+              value={loginForm.email}
+              onChange={(event) => onChange({ ...loginForm, email: event.target.value })}
+            />
+          </label>
+          <label>
+            Password
+            <input
+              className="text-input"
+              type="password"
+              value={loginForm.password}
+              onChange={(event) => onChange({ ...loginForm, password: event.target.value })}
+            />
+          </label>
+          {loginError && <p className="form-error">{loginError}</p>}
+          <button className="primary-button full" type="submit">
+            Log in to workspace <ArrowRight size={18} />
+          </button>
+        </form>
+      </section>
+    </main>
+  );
+}
+
 function ScoreGauge({ score, compact = false }: { score: number; compact?: boolean }) {
   return (
     <div
@@ -929,6 +1091,20 @@ function ScoreGauge({ score, compact = false }: { score: number; compact?: boole
         <strong>{score}</strong>
         {!compact && <span>/100</span>}
       </div>
+    </div>
+  );
+}
+
+function NoScoreBadge({ compact = false }: { compact?: boolean }) {
+  return (
+    <div className={`no-score-badge ${compact ? "compact" : ""}`} aria-label="No ATS score yet">
+      <ShieldCheck size={compact ? 20 : 34} />
+      {!compact && (
+        <div>
+          <strong>No score yet</strong>
+          <span>Add CV to scan</span>
+        </div>
+      )}
     </div>
   );
 }
@@ -949,16 +1125,20 @@ function IssueList({ items }: { items: string[] }) {
 function OptimizerTab({
   session,
   rerunRole,
+  rerunCv,
   rerunJob,
   setRerunRole,
+  setRerunCv,
   setRerunJob,
   rerunAnalysis,
   updateOptimizedCv
 }: {
   session: SessionData;
   rerunRole: string;
+  rerunCv: string;
   rerunJob: string;
   setRerunRole: (value: string) => void;
+  setRerunCv: (value: string) => void;
   setRerunJob: (value: string) => void;
   rerunAnalysis: () => void;
   updateOptimizedCv: (value: string) => void;
@@ -968,7 +1148,7 @@ function OptimizerTab({
       <section className="panel retarget-panel">
         <div>
           <h2>Re-run for another job</h2>
-          <p>Paste a new JD to rebuild the score, CV, cover letter, LinkedIn kit and interview prep. In production this becomes fair-use unlimited after the one-time unlock.</p>
+          <p>Paste or replace the CV and add a job advert when you have one. A real ATS score appears once there is enough CV text to analyse.</p>
         </div>
         <div className="retarget-grid">
           <input
@@ -983,6 +1163,12 @@ function OptimizerTab({
         </div>
         <textarea
           className="small-textarea"
+          value={rerunCv}
+          onChange={(event) => setRerunCv(event.target.value)}
+          placeholder="Paste or replace CV text here"
+        />
+        <textarea
+          className="small-textarea"
           value={rerunJob}
           onChange={(event) => setRerunJob(event.target.value)}
           placeholder="Paste new job description"
@@ -993,9 +1179,9 @@ function OptimizerTab({
         <div className="panel document-panel">
           <div className="panel-heading">
             <h2>Original CV</h2>
-            <button className="ghost-button" onClick={() => copyText(session.cvText)}>Copy</button>
+            <button className="ghost-button" disabled={!session.cvText.trim()} onClick={() => copyText(session.cvText)}>Copy</button>
           </div>
-          <pre>{session.cvText}</pre>
+          <pre>{session.cvText || "No CV has been added yet. Paste it into the re-run panel above when you have it, then re-run to unlock a proper ATS score."}</pre>
         </div>
         <div className="panel document-panel">
           <div className="panel-heading">
@@ -1014,14 +1200,20 @@ function OptimizerTab({
 }
 
 function ReportTab({ session }: { session: SessionData }) {
+  const canScore = hasScorableSession(session);
+
   return (
     <div className="report-grid">
       <section className="panel score-card">
-        <ScoreGauge score={session.analysis.score} />
+        {canScore ? <ScoreGauge score={session.analysis.score} /> : <NoScoreBadge />}
         <div>
-          <p className="eyebrow">Current match</p>
-          <h2>{scoreLabel(session.analysis.score)}</h2>
-          <p>Re-score after editing by using the re-run panel in CV Optimizer.</p>
+          <p className="eyebrow">{canScore ? "Current match" : "Starter report"}</p>
+          <h2>{canScore ? scoreLabel(session.analysis.score) : "No ATS score yet"}</h2>
+          <p>
+            {canScore
+              ? "Re-score after editing by using the re-run panel in CV Optimizer."
+              : "Add your CV in CV Optimizer and re-run. Until then, this report stays focused on role readiness and next steps."}
+          </p>
         </div>
       </section>
       <section className="panel">
@@ -1039,7 +1231,7 @@ function ReportTab({ session }: { session: SessionData }) {
         <IssueList items={session.analysis.allIssues} />
       </section>
       <section className="panel">
-        <h2>5 steps to raise the score</h2>
+        <h2>{canScore ? "5 steps to raise the score" : "5 steps to get ready for scoring"}</h2>
         <ol className="number-list">
           {session.analysis.improvementSteps.map((step) => (
             <li key={step}>{step}</li>

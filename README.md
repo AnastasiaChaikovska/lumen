@@ -13,6 +13,15 @@ npm run dev
 
 The dev server is configured for `127.0.0.1`. If port `5173` is occupied, Vite will pick the next available port.
 
+## Test Account
+
+Use this seeded account after the reveal/paywall preview:
+
+- Email: `founder@lumen.test`
+- Password: `Lumen2026!`
+
+The preview treats this as a paid workspace login. In production, checkout should create or find the user account from the buyer email and return them through a secure magic link.
+
 ## Build
 
 ```bash
@@ -24,9 +33,10 @@ npm run build
 - Longer onboarding flow from target role to scan reveal.
 - CV can be pasted or skipped; skipped-CV users get a starter plan and can add the CV later.
 - Job description is optional; users can optimise around a target role first.
-- Deterministic ATS analysis with score, keyword gaps, formatting checks and improvement steps.
+- Deterministic ATS analysis with a score only when enough CV text exists; skipped-CV users see "No score yet" and next steps.
 - Editable optimized CV and cover letter.
 - Client-side TXT, DOCX and PDF export.
+- Account preview gate with seeded test credentials before the paid workspace.
 - Application tracker with local CRUD, status updates and response/interview stats.
 - LinkedIn headline/about/keyword generation.
 - Interview question and STAR worksheet generation.

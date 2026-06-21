@@ -45,6 +45,14 @@ export interface SessionData {
   updatedAt: string;
 }
 
+export interface AuthUser {
+  email: string;
+  name: string;
+  paidAccess: boolean;
+  createdAt: string;
+  lastLoginAt: string;
+}
+
 export interface LinkedInKit {
   headlines: string[];
   about: string;

@@ -8,8 +8,10 @@
 - Keep TXT/DOCX/PDF export client-side to avoid server costs.
 - Keep the free reveal mostly deterministic, then call an LLM only for paid/full generation or explicit re-runs.
 - Add Paddle or Lemon Squeezy only when the paywall is ready.
+- After payment, create or find the account by checkout email, grant lifetime access, and send the buyer to the saved workspace through a magic link.
 - Use one-time payment, not a trial or subscription: launch at £19, test £24, and offer one optional +£7 checkout bump.
 - Keep the longer onboarding before the paywall. CV paste and job description paste must stay optional so the funnel works for users who are browsing on mobile or do not have documents nearby.
+- Do not show a numeric ATS score unless there is enough CV text to analyse. For no-CV journeys, store a starter/readiness report and let users add the CV later.
 
 ## Database tables
 
@@ -46,7 +48,8 @@ create table analyses (
   user_id uuid not null references users(id) on delete cascade,
   cv_id uuid references cv_documents(id) on delete cascade,
   job_id uuid references jobs(id) on delete cascade,
-  score integer not null,
+  score integer,
+  report_type text not null default 'scored',
   issues_json jsonb not null,
   created_at timestamptz default now()
 );
@@ -108,6 +111,8 @@ Use `purchases` to restore access, handle refunds, and record the +£7 order bum
 - Test price: £24 inc. VAT once the funnel has enough traffic.
 - No trial, no monthly renewal, no annual renewal.
 - Checkout promise: "one payment, yours forever" and "no subscription".
+- Checkout result: paid users receive a link to their account workspace, not a one-off download page.
+- Auth flow: use passwordless magic links first for lower support burden; add email/password only if customers clearly need it.
 - Order bump: optional +£7 Interview Answer Workbook or Role-Specific Bullet Builder.
 - Fair use: unlimited for normal job searching, with a soft monthly generation cap to protect AI cost.
 - Paywall should appear after the free reveal, never before the user has chosen a role, described the blocker, and either pasted or skipped their CV.
@@ -116,9 +121,10 @@ Use `purchases` to restore access, handle refunds, and record the +£7 order bum
 
 - Create one server endpoint: `POST /api/generate-application`.
 - Inputs: `cv_text`, `job_text`, `target_role`, `mode`.
-- Outputs: strict JSON matching the current frontend shapes: `analysis`, `optimizedCv`, `coverLetter`, `linkedInKit`, `interviewPrep`.
+- Outputs: strict JSON matching the current frontend shapes: `analysis`, `optimizedCv`, `coverLetter`, `linkedInKit`, `interviewPrep`. `analysis.score` should be null or omitted for starter journeys without enough CV text.
 - Cost control: cache generations by a hash of `cv_text + job_text + target_role`, rate-limit free users, and only use LLM generation after email capture or payment.
 - Keep the current deterministic engine as fallback if the AI call fails.
+- For skipped-CV users, avoid LLM calls until they unlock or paste enough CV text. The deterministic starter plan is enough for the free reveal.
 - Suggested fair-use starting point: 40 full generations per month per paid user, with manual review or cooldown above that.
 
 ## Environment variables
