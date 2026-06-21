@@ -15,12 +15,12 @@ The dev server is configured for `127.0.0.1`. If port `5173` is occupied, Vite w
 
 ## Test Account
 
-Use this seeded account after the reveal/paywall preview:
+Use this seeded account from the top-right Login button or after the reveal/paywall preview:
 
 - Email: `founder@lumen.test`
 - Password: `Lumen2026!`
 
-The preview treats this as a paid workspace login. In production, checkout should create or find the user account from the buyer email and return them through a secure magic link.
+The preview treats this as a paid workspace login. If no scan exists yet, it opens a ready-made demo workspace so the platform can be reviewed directly. In production, checkout should create or find the user account from the buyer email and return them through a secure magic link.
 
 ## Build
 

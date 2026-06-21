@@ -98,6 +98,28 @@ const demoCredentials = {
   password: "Lumen2026!"
 };
 
+const demoCvText = `Alex Morgan
+London | alex@example.com | linkedin.com/in/alexmorgan
+
+PROFILE
+Marketing Executive with 4 years of experience delivering email campaigns, SEO content, CRM segmentation and paid social reporting for UK B2C brands.
+
+CORE SKILLS
+Campaign management, Google Analytics, CRM, SEO, stakeholder management, copywriting, reporting, Excel.
+
+EXPERIENCE
+Marketing Executive, Bright Retail, 2022-present
+- Delivered weekly email campaigns to 120,000 subscribers and improved click-through rate by 18%.
+- Managed CRM segmentation and campaign reporting across acquisition and retention channels.
+- Coordinated social content calendar with sales and product teams.
+
+Marketing Assistant, North Studio, 2020-2022
+- Supported SEO content updates that increased organic sessions by 24%.
+- Built monthly dashboards in Excel and Google Analytics for senior stakeholders.
+
+EDUCATION
+BA Marketing, University of Leeds.`;
+
 const stageLabels: Record<SearchStage, string> = {
   started: "Just started",
   "no-luck": "Applying, no luck",
@@ -196,6 +218,20 @@ function buildSession(form: OnboardingForm, previousId?: string): SessionData {
     createdAt: now,
     updatedAt: now
   };
+}
+
+function buildDemoSession(email: string) {
+  return buildSession({
+    targetRole: "Marketing Executive",
+    searchStage: "no-luck",
+    blocker: "silence",
+    cvMode: "paste",
+    jobMode: "role",
+    outputGoal: "bundle",
+    cvText: demoCvText,
+    jobText: "",
+    email
+  });
 }
 
 function scoreLabel(score: number) {
@@ -381,8 +417,27 @@ export default function App() {
 
     if (session) {
       updateSession({ ...session, email: session.email || user.email });
-      setScreen("dashboard");
+    } else {
+      const demoSession = buildDemoSession(user.email);
+      setSession(demoSession);
+      saveSession(demoSession);
+      setForm({
+        targetRole: demoSession.targetRole,
+        searchStage: demoSession.searchStage,
+        blocker: demoSession.blocker,
+        cvMode: demoSession.cvMode,
+        jobMode: demoSession.jobMode,
+        outputGoal: demoSession.outputGoal,
+        cvText: demoSession.cvText,
+        jobText: demoSession.jobText,
+        email: demoSession.email
+      });
+      setRerunRole(demoSession.targetRole);
+      setRerunCv(demoSession.cvText);
+      setRerunJob(demoSession.jobText);
     }
+
+    setScreen("dashboard");
   }
 
   function logout() {
@@ -425,11 +480,18 @@ export default function App() {
               {authUser.email}
             </span>
           )}
+          {!authUser && (
+            <button className="ghost-button" onClick={() => setScreen("login")}>
+              Log in
+            </button>
+          )}
           {session && (
             <>
-              <button className="ghost-button" onClick={() => setScreen(authUser ? "dashboard" : "login")}>
-                {authUser ? "Dashboard" : "Log in"}
-              </button>
+              {authUser && (
+                <button className="ghost-button" onClick={() => setScreen("dashboard")}>
+                  Dashboard
+                </button>
+              )}
               <button className="ghost-button" onClick={resetAll}>
                 New scan
               </button>
@@ -868,7 +930,7 @@ export default function App() {
         </main>
       )}
 
-      {screen === "login" && session && (
+      {screen === "login" && (
         <LoginScreen
           loginForm={loginForm}
           loginError={loginError}
@@ -1041,7 +1103,7 @@ function LoginScreen({
         <p className="eyebrow">Account workspace</p>
         <h1>Your paid link should open a saved workspace.</h1>
         <p>
-          In the live flow, checkout creates or finds the account from the buyer email and sends them back here. For testing, use the seeded account below.
+          In the live flow, checkout creates or finds the account from the buyer email and sends them back here. For testing, use the seeded account below; if you have not run a scan yet, it opens a ready-made demo workspace.
         </p>
 
         <div className="credential-box" aria-label="Test login credentials">
