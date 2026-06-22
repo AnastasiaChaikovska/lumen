@@ -996,6 +996,10 @@ h3 {
   font-size: clamp(28px, 4vw, 44px);
 }
 
+.workspace-header > button {
+  flex: 0 0 auto;
+}
+
 .retarget-panel {
   display: grid;
   gap: 14px;
@@ -1047,6 +1051,24 @@ h3 {
 
 .single-document {
   min-height: 740px;
+}
+
+.cover-studio {
+  display: grid;
+  grid-template-columns: minmax(320px, 0.48fr) minmax(0, 1fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.cover-control {
+  display: grid;
+  gap: 14px;
+}
+
+.evidence-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 .report-grid {
@@ -1172,6 +1194,12 @@ h3 {
   font-size: 13px;
 }
 
+.application-actions {
+  display: grid;
+  gap: 8px;
+  justify-items: end;
+}
+
 .notes-input {
   min-height: 72px;
   resize: vertical;
@@ -1211,6 +1239,30 @@ h3 {
   font-weight: 800;
 }
 
+.question-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.question-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-soft);
+}
+
+.question-card p {
+  margin: 0;
+  color: #314743;
+  font-weight: 800;
+  line-height: 1.45;
+}
+
 .worksheet-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1247,6 +1299,7 @@ h3 {
   }
 
   .document-grid,
+  .cover-studio,
   .reveal-grid,
   .report-grid,
   .worksheet-grid,
@@ -1259,8 +1312,13 @@ h3 {
   }
 
   .application-card .notes-input,
-  .application-card .application-meta {
+  .application-card .application-meta,
+  .application-card .application-actions {
     grid-column: 1 / -1;
+  }
+
+  .application-actions {
+    justify-items: stretch;
   }
 }
 
@@ -1296,6 +1354,7 @@ h3 {
   .step-actions,
   .workspace-header,
   .panel-heading,
+  .question-card,
   .score-card {
     align-items: stretch;
     flex-direction: column;

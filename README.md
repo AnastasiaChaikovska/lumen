@@ -34,10 +34,13 @@ npm run build
 - Deterministic ATS analysis with a score only when enough CV text exists; skipped-CV users see a starter plan and next steps.
 - Editable optimized CV and cover letter.
 - Client-side TXT, DOCX and PDF export.
+- One-click full application pack export.
+- Cover letter studio with company, role, tone and evidence controls.
 - Account login with a saved workspace.
 - Application tracker with local CRUD, status updates and response/interview stats.
+- Tracker follow-up message generation.
 - LinkedIn headline/about/keyword generation.
-- Interview question and STAR worksheet generation.
+- Interview question, answer frame and STAR worksheet generation.
 - Browser-only persistence via `localStorage`.
 - UK-market landing proof points based on ONS Labour Market Overview June 2026 and Indeed Hiring Lab June 2026.
 

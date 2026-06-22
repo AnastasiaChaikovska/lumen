@@ -71,6 +71,16 @@ interface OnboardingForm {
   email: string;
 }
 
+type CoverTone = "confident" | "warm" | "direct";
+
+interface CoverBrief {
+  company: string;
+  role: string;
+  hiringManager: string;
+  tone: CoverTone;
+  evidence: string;
+}
+
 const emptyForm: OnboardingForm = {
   targetRole: "",
   searchStage: "no-luck",
@@ -101,6 +111,14 @@ const demoCredentials = {
 const emptyLogin = {
   email: "",
   password: ""
+};
+
+const emptyCoverBrief: CoverBrief = {
+  company: "",
+  role: "",
+  hiringManager: "",
+  tone: "warm",
+  evidence: ""
 };
 
 const demoCvText = `Alex Morgan
@@ -246,8 +264,126 @@ function scoreLabel(score: number) {
   return "At risk";
 }
 
+function slugify(value: string) {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 48) || "application";
+}
+
 function hasScorableSession(session: SessionData) {
   return session.cvMode === "paste" && session.cvText.trim().length >= 80;
+}
+
+function splitEvidence(value: string) {
+  return value
+    .split(/\n|;/)
+    .map((item) => item.replace(/^[-*\s]+/, "").trim())
+    .filter(Boolean)
+    .slice(0, 4);
+}
+
+function buildPersonalizedCoverLetter(session: SessionData, brief: CoverBrief) {
+  const role = brief.role.trim() || session.targetRole || "the role";
+  const company = brief.company.trim();
+  const greeting = brief.hiringManager.trim()
+    ? `Dear ${brief.hiringManager.trim()},`
+    : "Dear Hiring Manager,";
+  const companyPhrase = company ? `${company}` : "your team";
+  const matched = session.analysis.matchedKeywords.slice(0, 5).join(", ");
+  const gaps = session.analysis.keywordGaps.slice(0, 4).join(", ");
+  const evidence = splitEvidence(brief.evidence);
+  const toneLead: Record<CoverTone, string> = {
+    confident: "I am excited to apply because the role aligns closely with the work I do best.",
+    warm: "I am excited to apply because the role feels like a strong match for the way I like to contribute.",
+    direct: "I am applying because my experience maps clearly to the role requirements."
+  };
+  const proofLines = evidence.length
+    ? evidence.map((item) => `- ${item}`).join("\n")
+    : session.analysis.strengths.slice(0, 3).map((item) => `- ${item}`).join("\n");
+
+  return `${greeting}
+
+${toneLead[brief.tone]} I am interested in the ${role} position at ${companyPhrase}, and I would bring a practical mix of delivery, communication and evidence-led problem solving.
+
+The strongest reasons to consider me are:
+${proofLines || "- I can bring relevant experience, clear communication and a structured approach to the role."}
+
+My application pack has been shaped around the role signals that matter most${matched ? `, including ${matched}` : ""}. ${gaps ? `I have also kept space to show evidence around ${gaps} where it is genuinely true for my background.` : "I have kept the wording focused on evidence rather than broad claims."}
+
+I would welcome the chance to discuss how my experience could support ${companyPhrase}. Thank you for your time and consideration.
+
+Kind regards,
+${session.cvText.split("\n").find((line) => line.trim())?.trim() || "Your name"}`;
+}
+
+function buildFullPack(session: SessionData, applications: ApplicationRecord[]) {
+  const activeApplications = applications
+    .slice(0, 8)
+    .map((item) => `${item.company || "Company"} - ${item.role || "Role"} - ${item.status}`)
+    .join("\n");
+
+  return `LUMEN APPLICATION PACK
+Role: ${session.targetRole}
+Updated: ${new Date(session.updatedAt).toLocaleString()}
+
+MATCH REPORT
+${hasScorableSession(session) ? `Score: ${session.analysis.score}/100 (${scoreLabel(session.analysis.score)})` : "Starter plan ready"}
+
+Top priorities:
+${session.analysis.topIssues.map((item) => `- ${item}`).join("\n")}
+
+Keyword gaps:
+${session.analysis.keywordGaps.length ? session.analysis.keywordGaps.map((item) => `- ${item}`).join("\n") : "- No major gaps detected."}
+
+OPTIMIZED CV
+${session.optimizedCv}
+
+COVER LETTER
+${session.coverLetter}
+
+LINKEDIN KIT
+Headlines:
+${session.linkedInKit.headlines.map((item) => `- ${item}`).join("\n")}
+
+About:
+${session.linkedInKit.about}
+
+Keyword bank:
+${session.linkedInKit.keywordBank.join(", ")}
+
+INTERVIEW PREP
+${session.interviewPrep.questions.map((item) => `- ${item}`).join("\n")}
+
+APPLICATION TRACKER
+${activeApplications || "No applications tracked yet."}
+`;
+}
+
+function buildFollowUpMessage(application: ApplicationRecord, session: SessionData) {
+  const role = application.role || session.targetRole || "the role";
+  const company = application.company || "your team";
+
+  return `Hello,
+
+I hope you are well. I wanted to follow up on my application for the ${role} role at ${company}. I am still very interested in the opportunity and would welcome the chance to discuss how my experience could support the team.
+
+Thank you again for your time.
+
+Kind regards`;
+}
+
+function buildStarTemplate(worksheet: { question: string; situationPrompt: string; taskPrompt: string; actionPrompt: string; resultPrompt: string }) {
+  return `${worksheet.question}
+
+Situation: ${worksheet.situationPrompt}
+Task: ${worksheet.taskPrompt}
+Action: ${worksheet.actionPrompt}
+Result: ${worksheet.resultPrompt}
+
+Draft answer:
+`;
 }
 
 function todayIso() {
@@ -301,11 +437,23 @@ export default function App() {
   const [rerunJob, setRerunJob] = useState(session?.jobText ?? "");
   const [loginForm, setLoginForm] = useState(emptyLogin);
   const [loginError, setLoginError] = useState("");
+  const [coverBrief, setCoverBrief] = useState<CoverBrief>(() => ({
+    ...emptyCoverBrief,
+    role: session?.targetRole ?? ""
+  }));
   const onboardingTotal = 7;
 
   useEffect(() => {
     saveApplications(applications);
   }, [applications]);
+
+  useEffect(() => {
+    if (!session) return;
+    setCoverBrief((current) => ({
+      ...current,
+      role: current.role || session.targetRole
+    }));
+  }, [session?.id, session?.targetRole]);
 
   useEffect(() => {
     if (screen !== "scan") return;
@@ -378,6 +526,7 @@ export default function App() {
     setRerunRole("");
     setRerunCv("");
     setRerunJob("");
+    setCoverBrief(emptyCoverBrief);
   }
 
   function rerunAnalysis() {
@@ -440,6 +589,7 @@ export default function App() {
       setRerunRole(demoSession.targetRole);
       setRerunCv(demoSession.cvText);
       setRerunJob(demoSession.jobText);
+      setCoverBrief({ ...emptyCoverBrief, role: demoSession.targetRole });
     }
 
     setScreen("dashboard");
@@ -990,6 +1140,17 @@ export default function App() {
               <button className="ghost-button" onClick={() => setScreen("reveal")}>
                 View reveal
               </button>
+              <button
+                className="secondary-button"
+                onClick={() =>
+                  downloadText(
+                    `lumen-${slugify(session.targetRole)}-full-pack.txt`,
+                    buildFullPack(session, applications)
+                  )
+                }
+              >
+                <Download size={17} /> Download full pack
+              </button>
             </div>
 
             {tab === "optimizer" && (
@@ -1009,17 +1170,25 @@ export default function App() {
             {tab === "report" && <ReportTab session={session} />}
 
             {tab === "cover" && (
-              <EditableDocumentTab
-                title="Cover Letter"
-                filenameBase="lumen-cover-letter"
+              <CoverLetterTab
+                session={session}
+                brief={coverBrief}
+                setBrief={setCoverBrief}
                 value={session.coverLetter}
                 onChange={(coverLetter) => updateSession({ ...session, coverLetter })}
+                onPersonalize={() =>
+                  updateSession({
+                    ...session,
+                    coverLetter: buildPersonalizedCoverLetter(session, coverBrief)
+                  })
+                }
               />
             )}
 
             {tab === "tracker" && (
               <TrackerTab
                 applications={applications}
+                session={session}
                 stats={stats}
                 draft={applicationDraft}
                 setDraft={setApplicationDraft}
@@ -1311,32 +1480,105 @@ function ReportTab({ session }: { session: SessionData }) {
   );
 }
 
-function EditableDocumentTab({
-  title,
-  filenameBase,
+function CoverLetterTab({
+  session,
+  brief,
+  setBrief,
   value,
-  onChange
+  onChange,
+  onPersonalize
 }: {
-  title: string;
-  filenameBase: string;
+  session: SessionData;
+  brief: CoverBrief;
+  setBrief: (value: CoverBrief) => void;
   value: string;
   onChange: (value: string) => void;
+  onPersonalize: () => void;
 }) {
+  const proofPrompts = session.analysis.strengths.length
+    ? session.analysis.strengths
+    : session.analysis.improvementSteps.slice(0, 3);
+
+  function addEvidence(line: string) {
+    setBrief({
+      ...brief,
+      evidence: `${brief.evidence.trim()}${brief.evidence.trim() ? "\n" : ""}${line}`.trim()
+    });
+  }
+
   return (
-    <section className="panel document-panel single-document">
-      <div className="panel-heading">
+    <div className="cover-studio">
+      <section className="panel cover-control">
         <div>
-          <p className="eyebrow">Editable export</p>
-          <h2>{title}</h2>
+          <p className="eyebrow">Letter studio</p>
+          <h2>Personalise the cover letter</h2>
+          <p>Give Lumen the details a recruiter expects, then shape the letter around your strongest evidence.</p>
         </div>
-        <ExportButtons title={title} filenameBase={filenameBase} body={value} />
-      </div>
-      <textarea
-        className="document-editor tall"
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-      />
-    </section>
+        <div className="form-grid">
+          <input
+            className="text-input"
+            placeholder="Company"
+            value={brief.company}
+            onChange={(event) => setBrief({ ...brief, company: event.target.value })}
+          />
+          <input
+            className="text-input"
+            placeholder="Role"
+            value={brief.role}
+            onChange={(event) => setBrief({ ...brief, role: event.target.value })}
+          />
+          <input
+            className="text-input"
+            placeholder="Hiring manager, if known"
+            value={brief.hiringManager}
+            onChange={(event) => setBrief({ ...brief, hiringManager: event.target.value })}
+          />
+          <select
+            className="text-input"
+            value={brief.tone}
+            onChange={(event) => setBrief({ ...brief, tone: event.target.value as CoverTone })}
+          >
+            <option value="warm">Warm</option>
+            <option value="confident">Confident</option>
+            <option value="direct">Direct</option>
+          </select>
+        </div>
+        <textarea
+          className="small-textarea"
+          placeholder="Paste 2-4 facts you want the letter to highlight. Example: improved CTR by 18%; managed CRM segmentation; built monthly dashboards."
+          value={brief.evidence}
+          onChange={(event) => setBrief({ ...brief, evidence: event.target.value })}
+        />
+        <div className="evidence-chips" aria-label="Suggested evidence">
+          {proofPrompts.slice(0, 4).map((item) => (
+            <button key={item} className="pill" onClick={() => addEvidence(item)}>
+              Add: {item}
+            </button>
+          ))}
+        </div>
+        <button className="primary-button" onClick={onPersonalize}>
+          <Sparkles size={18} /> Personalise letter
+        </button>
+      </section>
+
+      <section className="panel document-panel single-document">
+        <div className="panel-heading">
+          <div>
+            <p className="eyebrow">Editable export</p>
+            <h2>Cover Letter</h2>
+          </div>
+          <div className="export-buttons">
+            <button className="mini-button" onClick={() => copyText(value)}>Copy</button>
+            <ExportButtons title="Cover Letter" filenameBase="lumen-cover-letter" body={value} />
+          </div>
+        </div>
+        <textarea
+          className="document-editor tall"
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+        />
+      </section>
+    </div>
   );
 }
 
@@ -1366,6 +1608,7 @@ function ExportButtons({
 
 function TrackerTab({
   applications,
+  session,
   stats,
   draft,
   setDraft,
@@ -1374,6 +1617,7 @@ function TrackerTab({
   deleteApplication
 }: {
   applications: ApplicationRecord[];
+  session: SessionData;
   stats: {
     total: number;
     responses: number;
@@ -1398,7 +1642,21 @@ function TrackerTab({
       </section>
 
       <section className="panel tracker-form">
-        <h2>Add application</h2>
+        <div className="panel-heading">
+          <h2>Add application</h2>
+          <button
+            className="ghost-button"
+            onClick={() =>
+              setDraft({
+                ...draft,
+                role: draft.role || session.targetRole,
+                notes: draft.notes || "Application pack tailored in Lumen."
+              })
+            }
+          >
+            Use current role
+          </button>
+        </div>
         <div className="form-grid">
           <input
             className="text-input"
@@ -1493,9 +1751,17 @@ function TrackerTab({
                 value={application.notes}
                 onChange={(event) => updateApplication(application.id, { notes: event.target.value })}
               />
-              <button className="icon-button" aria-label="Delete application" onClick={() => deleteApplication(application.id)}>
-                <Trash2 size={17} />
-              </button>
+              <div className="application-actions">
+                <button
+                  className="mini-button"
+                  onClick={() => copyText(buildFollowUpMessage(application, session))}
+                >
+                  Follow-up
+                </button>
+                <button className="icon-button" aria-label="Delete application" onClick={() => deleteApplication(application.id)}>
+                  <Trash2 size={17} />
+                </button>
+              </div>
             </article>
           ))
         ) : (
@@ -1556,12 +1822,33 @@ function InterviewTab({ session }: { session: SessionData }) {
     <div className="stack">
       <section className="panel">
         <h2>Likely questions</h2>
-        <IssueList items={session.interviewPrep.questions} />
+        <div className="question-list">
+          {session.interviewPrep.questions.map((question) => (
+            <article className="question-card" key={question}>
+              <p>{question}</p>
+              <button
+                className="mini-button"
+                onClick={() =>
+                  copyText(
+                    `${question}\n\nSituation:\nTask:\nAction:\nResult:\n\nDraft answer:\n`
+                  )
+                }
+              >
+                Copy answer frame
+              </button>
+            </article>
+          ))}
+        </div>
       </section>
       <section className="worksheet-grid">
         {session.interviewPrep.worksheets.map((worksheet) => (
           <article className="panel worksheet" key={worksheet.question}>
-            <h3>{worksheet.question}</h3>
+            <div className="panel-heading">
+              <h3>{worksheet.question}</h3>
+              <button className="mini-button" onClick={() => copyText(buildStarTemplate(worksheet))}>
+                Copy STAR
+              </button>
+            </div>
             <p><strong>Situation:</strong> {worksheet.situationPrompt}</p>
             <p><strong>Task:</strong> {worksheet.taskPrompt}</p>
             <p><strong>Action:</strong> {worksheet.actionPrompt}</p>
