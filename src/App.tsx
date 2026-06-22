@@ -98,6 +98,11 @@ const demoCredentials = {
   password: "Lumen2026!"
 };
 
+const emptyLogin = {
+  email: "",
+  password: ""
+};
+
 const demoCvText = `Alex Morgan
 London | alex@example.com | linkedin.com/in/alexmorgan
 
@@ -294,7 +299,7 @@ export default function App() {
   const [rerunRole, setRerunRole] = useState(session?.targetRole ?? "");
   const [rerunCv, setRerunCv] = useState(session?.cvText ?? "");
   const [rerunJob, setRerunJob] = useState(session?.jobText ?? "");
-  const [loginForm, setLoginForm] = useState(demoCredentials);
+  const [loginForm, setLoginForm] = useState(emptyLogin);
   const [loginError, setLoginError] = useState("");
   const onboardingTotal = 7;
 
@@ -398,7 +403,7 @@ export default function App() {
     const password = loginForm.password;
 
     if (email !== demoCredentials.email || password !== demoCredentials.password) {
-      setLoginError("Use the test account shown below to open the paid workspace preview.");
+      setLoginError("That email or password does not match. Please try again.");
       return;
     }
 
@@ -470,7 +475,7 @@ export default function App() {
           <span className="brand-mark">L</span>
           <span>
             <strong>Lumen</strong>
-            <small>UK ATS application platform</small>
+            <small>CV and application workspace</small>
           </span>
         </button>
         <nav className="topbar-actions">
@@ -511,16 +516,16 @@ export default function App() {
             <div className="hero-panel">
               <div>
                 <p className="eyebrow">Built for the UK job search</p>
-                <h1>Getting silence does not mean you are not good enough.</h1>
+                <h1>Your next application can feel lighter than the last one.</h1>
                 <p className="hero-copy">
-                  The UK market is tighter, recruiters are overloaded, and a CV that made sense to a human can still be hard for screening systems to read. Lumen helps you turn what you already have into a clearer, more searchable application pack.
+                  Lumen helps you turn a messy job search into one clear pack: a sharper CV, a focused cover letter, a match report and a calm place to track what happens next.
                 </p>
                 <div className="hero-actions">
                   <button
                     className="primary-button"
                     onClick={() => document.getElementById("onboarding-flow")?.scrollIntoView({ behavior: "smooth" })}
                   >
-                    Start with what you have <ArrowRight size={18} />
+                    Start gently <ArrowRight size={18} />
                   </button>
                   <button
                     className="ghost-button"
@@ -531,8 +536,8 @@ export default function App() {
                 </div>
               </div>
               <div className="trust-strip" aria-label="Product safeguards">
-                <span><ShieldCheck size={16} /> Pay once at launch</span>
-                <span><UserCircle size={16} /> Account after unlock</span>
+                <span><Sparkles size={16} /> Start with what you have</span>
+                <span><UserCircle size={16} /> Saved workspace</span>
                 <span><ShieldCheck size={16} /> No invented facts</span>
                 <span><Gauge size={16} /> CV optional to start</span>
                 <span><Download size={16} /> DOCX, PDF, TXT</span>
@@ -750,7 +755,7 @@ export default function App() {
                     <strong>{form.jobMode === "paste" ? "Specific advert pasted" : "Target-role mode"}</strong>
                   </div>
                   <p className="soft-note">
-                    The free reveal shows a real score when there is a CV to analyse, or a starter readiness plan when there is not. The full CV, cover letter, exports and report come after the unlock point.
+                    Your first plan is next. If you add a CV, Lumen will score the document; if not, you will still get a practical route forward.
                   </p>
                 </StepFrame>
               )}
@@ -793,7 +798,7 @@ export default function App() {
               <article>
                 <FileText size={22} />
                 <h3>Have your CV? We scan it.</h3>
-                <p>Get a specific match score, formatting risks, missing keywords and the top fixes before the unlock point.</p>
+                <p>See the formatting risks, missing keywords and fixes that can make the document easier to read.</p>
               </article>
               <article>
                 <Briefcase size={22} />
@@ -807,18 +812,19 @@ export default function App() {
               </article>
               <article>
                 <ShieldCheck size={22} />
-                <h3>No subscription trap.</h3>
-                <p>The intended launch model is one payment for the full pack, with fair-use re-runs for your search.</p>
+                <h3>Everything stays factual.</h3>
+                <p>Lumen rewrites what is already true, then helps you add evidence where the CV feels vague.</p>
               </article>
             </div>
           </section>
 
           <section className="offer-band">
             <div>
-              <p className="eyebrow">The unlock later</p>
-              <h2>See the problem first. Pay once only if the fix is worth it.</h2>
+              <p className="eyebrow">When you want the full pack</p>
+              <h2>Unlock the workspace, exports and re-runs when the direction feels right.</h2>
             </div>
             <div className="offer-list">
+              <span>£19 full access</span>
               <span>ATS-ready CV</span>
               <span>Cover letter</span>
               <span>Full report</span>
@@ -872,8 +878,8 @@ export default function App() {
                 {hasScorableSession(session)
                   ? `You are ${100 - session.analysis.score} points from an ATS-ready application.`
                   : session.jobMode === "paste"
-                    ? "No CV score yet. We can still build the route."
-                    : "No score yet, and that is the right answer."}
+                    ? "Your first route into this role is ready."
+                    : "Your starter plan is ready."}
               </h1>
               <p>
                 {hasScorableSession(session) ? (
@@ -882,7 +888,7 @@ export default function App() {
                   </>
                 ) : (
                   <>
-                    Without your CV, Lumen should not pretend to know your ATS match. We will build a role-ready structure for <strong>{session.targetRole}</strong> first, then you can paste your CV later for a real scan.
+                    Start with a role-ready structure for <strong>{session.targetRole}</strong>. When your CV is nearby, add it to sharpen the report and tailor the rewrite.
                   </>
                 )}
               </p>
@@ -894,20 +900,20 @@ export default function App() {
               <IssueList items={session.analysis.topIssues} />
             </div>
             <div className="panel unlock-panel">
-              <h2>Unlock full application pack</h2>
+              <h2>Your full application pack</h2>
               <p>
-                The paywall slot goes here later. The intended model is a one-time launch payment, not a trial or subscription. After checkout, the receipt link should bring the user back into their account workspace.
+                Keep the CV, cover letter, match report, exports and tracker together in one workspace. Come back whenever you find a new role to tailor.
               </p>
-              <div className="pricing-preview" aria-label="Planned pricing">
+              <div className="pricing-preview" aria-label="Full access includes">
                 <div>
-                  <span>Launch plan</span>
+                  <span>Full access</span>
                   <strong>£19</strong>
-                  <small>one payment, lifetime access</small>
+                  <small>one payment</small>
                 </div>
                 <ul>
                   <li>ATS-ready CV, cover letter, full report and exports</li>
-                  <li>Unlimited re-runs within fair use</li>
-                  <li>Optional +£7 checkout bump: Interview Answer Workbook</li>
+                  <li>Saved workspace with re-runs for new roles</li>
+                  <li>LinkedIn prompts, interview prep and application tracker</li>
                 </ul>
               </div>
               <label className="field-label" htmlFor="email">Email for saving this scan</label>
@@ -920,10 +926,10 @@ export default function App() {
                 onChange={(event) => setForm({ ...form, email: event.target.value })}
               />
               <button className="primary-button full" onClick={saveEmailAndOpenWorkspace}>
-                Continue to account preview <ArrowRight size={18} />
+                Continue to workspace <ArrowRight size={18} />
               </button>
               <p className="privacy-line">
-                Next you will use the test account to view the paid workspace as a returning customer.
+                Your workspace is tied to your email, so you can return to your documents later.
               </p>
             </div>
           </section>
@@ -951,7 +957,7 @@ export default function App() {
               ) : (
                 <>
                   <NoScoreBadge compact />
-                  <span>No score yet</span>
+                  <span>Starter plan</span>
                 </>
               )}
             </div>
@@ -971,7 +977,7 @@ export default function App() {
               })}
             </div>
             <div className="sidebar-note">
-              <strong>Paid workspace:</strong> the £19 checkout should unlock this account via receipt link or magic link. No trial, no subscription.
+              <strong>Saved workspace:</strong> keep your CV, letters, report, tracker and interview prep together as your search moves.
             </div>
           </aside>
 
@@ -1101,17 +1107,10 @@ function LoginScreen({
           <LockKeyhole size={34} />
         </div>
         <p className="eyebrow">Account workspace</p>
-        <h1>Your paid link should open a saved workspace.</h1>
+        <h1>Welcome back to your application workspace.</h1>
         <p>
-          In the live flow, checkout creates or finds the account from the buyer email and sends them back here. For testing, use the seeded account below; if you have not run a scan yet, it opens a ready-made demo workspace.
+          Sign in to return to your CV, cover letters, match reports, tracker and interview prep.
         </p>
-
-        <div className="credential-box" aria-label="Test login credentials">
-          <span>Test email</span>
-          <strong>{demoCredentials.email}</strong>
-          <span>Test password</span>
-          <strong>{demoCredentials.password}</strong>
-        </div>
 
         <form className="login-form" onSubmit={onSubmit}>
           <label>
@@ -1159,12 +1158,12 @@ function ScoreGauge({ score, compact = false }: { score: number; compact?: boole
 
 function NoScoreBadge({ compact = false }: { compact?: boolean }) {
   return (
-    <div className={`no-score-badge ${compact ? "compact" : ""}`} aria-label="No ATS score yet">
+    <div className={`no-score-badge ${compact ? "compact" : ""}`} aria-label="Starter plan ready">
       <ShieldCheck size={compact ? 20 : 34} />
       {!compact && (
         <div>
-          <strong>No score yet</strong>
-          <span>Add CV to scan</span>
+          <strong>Starter plan</strong>
+          <span>Add CV anytime</span>
         </div>
       )}
     </div>
@@ -1209,8 +1208,8 @@ function OptimizerTab({
     <div className="stack">
       <section className="panel retarget-panel">
         <div>
-          <h2>Re-run for another job</h2>
-          <p>Paste or replace the CV and add a job advert when you have one. A real ATS score appears once there is enough CV text to analyse.</p>
+          <h2>Tailor for another role</h2>
+          <p>Paste or replace your CV and add a job advert when you have one. Lumen will refresh the report, CV, cover letter and prep pack together.</p>
         </div>
         <div className="retarget-grid">
           <input
@@ -1243,7 +1242,7 @@ function OptimizerTab({
             <h2>Original CV</h2>
             <button className="ghost-button" disabled={!session.cvText.trim()} onClick={() => copyText(session.cvText)}>Copy</button>
           </div>
-          <pre>{session.cvText || "No CV has been added yet. Paste it into the re-run panel above when you have it, then re-run to unlock a proper ATS score."}</pre>
+          <pre>{session.cvText || "Add your CV in the panel above whenever you are ready. Lumen will refresh your pack around the real document."}</pre>
         </div>
         <div className="panel document-panel">
           <div className="panel-heading">
@@ -1270,11 +1269,11 @@ function ReportTab({ session }: { session: SessionData }) {
         {canScore ? <ScoreGauge score={session.analysis.score} /> : <NoScoreBadge />}
         <div>
           <p className="eyebrow">{canScore ? "Current match" : "Starter report"}</p>
-          <h2>{canScore ? scoreLabel(session.analysis.score) : "No ATS score yet"}</h2>
+          <h2>{canScore ? scoreLabel(session.analysis.score) : "Starter plan ready"}</h2>
           <p>
             {canScore
               ? "Re-score after editing by using the re-run panel in CV Optimizer."
-              : "Add your CV in CV Optimizer and re-run. Until then, this report stays focused on role readiness and next steps."}
+              : "Add your CV in CV Optimizer whenever you want a sharper match report and tailored rewrite."}
           </p>
         </div>
       </section>

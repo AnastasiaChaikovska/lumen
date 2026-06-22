@@ -848,25 +848,10 @@ h3 {
   color: var(--primary);
 }
 
-.credential-box {
-  display: grid;
-  grid-template-columns: 0.42fr 1fr;
-  gap: 8px 12px;
-  padding: 14px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: var(--surface-soft);
-}
-
-.credential-box span,
 .login-form label {
   color: var(--muted);
   font-size: 13px;
   font-weight: 800;
-}
-
-.credential-box strong {
-  color: var(--ink);
 }
 
 .login-form {
@@ -1299,7 +1284,6 @@ h3 {
 
   .choice-grid,
   .choice-grid.two,
-  .credential-box,
   .market-stats,
   .stats-grid,
   .form-grid,

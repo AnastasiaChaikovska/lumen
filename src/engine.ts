@@ -251,7 +251,7 @@ export function analyseApplication(cvText: string, jobText: string, targetRole: 
       ? jobKeywords.slice(0, 10).map(formatTerm)
       : extractKeywords(targetRole, 8).map(formatTerm);
     const topIssues = [
-      "Paste your CV when you can so Lumen can score the real document instead of a starter plan.",
+      "Add your CV when it is nearby to sharpen this plan around your real experience.",
       "Start with a plain one-column CV structure: profile, core skills, experience, education and ATS-safe contact details.",
       jobText
         ? "Use the job advert keywords only where they are true for you."
@@ -279,7 +279,7 @@ export function analyseApplication(cvText: string, jobText: string, targetRole: 
         "Education: keep qualifications concise and easy to scan."
       ],
       improvementSteps: [
-        "Paste your current CV to turn this starter plan into a true ATS score.",
+        "Add your current CV when you are ready to tailor the pack around your real roles and achievements.",
         roleKeywords.length
           ? `Gather evidence for relevant role keywords: ${roleKeywords.slice(0, 6).join(", ")}.`
           : "Gather the tools, methods and responsibilities that match the role you want.",
